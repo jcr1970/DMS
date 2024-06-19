@@ -1,10 +1,8 @@
-# src/utils/database.py
 import sqlite3
 import hashlib
 import os
-import time
 
-class Database:
+class UserDatabase:
     def __init__(self):
         db_path = 'data/engagement_data.db'
         os.makedirs(os.path.dirname(db_path), exist_ok=True)  # Ensure the directory exists
@@ -13,19 +11,6 @@ class Database:
 
     def create_tables(self):
         cursor = self.connection.cursor()
-
-        # Table for gaze data
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS gaze_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user TEXT,
-                timestamp TEXT,
-                gaze_direction TEXT,
-                duration REAL
-            )
-        ''')
-
-        # Table for user data
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,25 +19,6 @@ class Database:
             )
         ''')
         self.connection.commit()
-
-    def log_gaze_data(self, username, gaze_data):
-        cursor = self.connection.cursor()
-        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-        for gaze_direction, durations in gaze_data.items():
-            if not isinstance(durations, list):
-                durations = [durations]
-            for duration in durations:
-                cursor.execute('''
-                    INSERT INTO gaze_data (user, timestamp, gaze_direction, duration) 
-                    VALUES (?, ?, ?, ?)
-                ''', (username, timestamp, gaze_direction, float(duration)))
-        self.connection.commit()
-
-    def retrieve_gaze_data(self):
-        cursor = self.connection.cursor()
-        cursor.execute('SELECT user, timestamp, gaze_direction, duration FROM gaze_data')
-        data = cursor.fetchall()
-        return data
 
     def create_user(self, username, password):
         cursor = self.connection.cursor()
@@ -88,10 +54,7 @@ class Database:
         self.connection.close()
 
 if __name__ == "__main__":
-    db = Database()
+    db = UserDatabase()
     db.create_user('test_user', 'password123')
     print(db.validate_user('test_user', 'password123'))  # Output: True
-    sample_data = {'road_focus': [5.0], 'mirror_check': [1.5]}
-    db.log_gaze_data('test_user', sample_data)
-    print(db.retrieve_gaze_data())
     db.close()
