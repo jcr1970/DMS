@@ -22,4 +22,3 @@ class BackgroundPanel(wx.Panel):
         image = image.Scale(client_size.GetWidth(), client_size.GetHeight())
         bitmap = wx.Bitmap(image)
         dc.DrawBitmap(bitmap, 0, 0)
-
