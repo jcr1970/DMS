@@ -87,4 +87,3 @@ class UserDatabase:
     def close(self):
         self.connection.close()
 
-
