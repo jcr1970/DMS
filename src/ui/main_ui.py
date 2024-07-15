@@ -10,6 +10,7 @@ from utils.database import Database
 from utils.user_database import UserDatabase
 from ui.background_panel import BackgroundPanel
 import logging
+import subprocess
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -343,6 +344,13 @@ class MainFrame(wx.Frame):
         self.play_button.Bind(wx.EVT_BUTTON, self.play_video)
         vbox.Add(self.play_button, flag=wx.LEFT | wx.TOP, border=10)
 
+        self.generate_report_button = wx.Button(panel, label="Generate Report")
+        self.generate_report_button.SetFont(font)
+        self.generate_report_button.SetBackgroundColour("#2196F3")  # Blue
+        self.generate_report_button.SetForegroundColour(wx.WHITE)
+        self.generate_report_button.Bind(wx.EVT_BUTTON, self.generate_report)
+        vbox.Add(self.generate_report_button, flag=wx.LEFT | wx.TOP, border=10)
+
         panel.SetSizerAndFit(vbox)
 
         return panel
@@ -358,6 +366,16 @@ class MainFrame(wx.Frame):
         if video_file:
             video_player = VideoPlayer(self, video_file)
             video_player.Show()
+
+    def generate_report(self, event):
+        # Get the absolute path of the current directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        streamlit_app_path = os.path.join(current_dir, 'streamlit_app.py')
+    
+        if os.path.exists(streamlit_app_path):
+            subprocess.Popen(['streamlit', 'run', streamlit_app_path])
+        else:
+            wx.MessageBox(f"Error: File does not exist: {streamlit_app_path}", 'Error', wx.OK | wx.ICON_ERROR)
 
     def create_settings_panel(self):
         panel = wx.Panel(self.panel)
