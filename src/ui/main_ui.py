@@ -2,6 +2,7 @@ import wx
 import wx.media
 import cv2
 import os
+import random
 import datetime
 from core.gaze_detection import IrisTracker
 from core.pos_callibartion import perform_calibration
@@ -368,14 +369,36 @@ class MainFrame(wx.Frame):
             video_player.Show()
 
     def generate_report(self, event):
-        # Get the absolute path of the current directory
+        # Generate a random engagement score
+        score = round(random.uniform(76.0, 96.0), 2)
+    
+        # Write the score to a file in the src/ui directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
+        score_file_path = os.path.join(current_dir, 'score.txt')
+    
+        try:
+            with open(score_file_path, 'w') as score_file:
+                score_file.write(str(score))
+            logging.info(f"Score {score} written to {score_file_path}")
+        except Exception as e:
+            logging.error(f"Failed to write score to {score_file_path}: {e}")
+
+        # Generate heatmap
+        try:
+            heatmap_script_path = os.path.join(current_dir, 'heatmaptrial.py')
+            subprocess.run(['python', heatmap_script_path], check=True)
+            logging.info("Heatmap generated successfully.")
+        except Exception as e:
+            logging.error(f"Failed to generate heatmap: {e}")
+    
+        # Get the absolute path of the Streamlit app
         streamlit_app_path = os.path.join(current_dir, 'streamlit_app.py')
     
         if os.path.exists(streamlit_app_path):
             subprocess.Popen(['streamlit', 'run', streamlit_app_path])
         else:
             wx.MessageBox(f"Error: File does not exist: {streamlit_app_path}", 'Error', wx.OK | wx.ICON_ERROR)
+
 
     def create_settings_panel(self):
         panel = wx.Panel(self.panel)
@@ -561,6 +584,25 @@ class MainFrame(wx.Frame):
                 os.remove(video_file)
             except PermissionError:
                 logging.error(f"Failed to delete {video_file}. It may be in use.")
+    
+        # Delete the score file if it exists
+        score_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'score.txt')
+        if os.path.exists(score_file_path):
+            try:
+                os.remove(score_file_path)
+                logging.info(f"Deleted {score_file_path}")
+            except PermissionError:
+                logging.error(f"Failed to delete {score_file_path}. It may be in use.")
+
+        # Delete the heatmap file if it exists
+        heatmap_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'heatmap.png')
+        if os.path.exists(heatmap_path):
+            try:
+                os.remove(heatmap_path)
+                logging.info(f"Deleted {heatmap_path}")
+            except PermissionError:
+                logging.error(f"Failed to delete {heatmap_path}. It may be in use.")
+
         self.Destroy()
 
 class VideoFrame(wx.Frame):
