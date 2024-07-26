@@ -5,7 +5,7 @@ import os
 
 class UserDatabase:
     def __init__(self):
-        db_path = 'data/engagement_data.db'
+        db_path = 'src/data/engagement_data.db'
         os.makedirs(os.path.dirname(db_path), exist_ok=True)  # Ensure the directory exists
         self.connection = sqlite3.connect(db_path)
         self.create_tables()

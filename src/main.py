@@ -1,8 +1,7 @@
-import wx
-from ui.main_ui import LoginFrame
+# src/main.py
+
+from ui.main_ui import MainApp
 
 if __name__ == "__main__":
-    app = wx.App(False)
-    login = LoginFrame(None, "Login")
-    login.Show()
+    app = MainApp(False)
     app.MainLoop()

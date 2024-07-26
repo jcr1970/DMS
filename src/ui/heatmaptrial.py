@@ -53,8 +53,3 @@ plt.text(2160, 720, 'Right Mirror', color='white', fontsize=12, ha='center')
 
 plt.title('Driver Gaze Heatmap')
 
-# Save the heatmap
-heatmap_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'heatmap.png')
-plt.savefig(heatmap_path)
-plt.close()
-print(f"Heatmap saved to {heatmap_path}")

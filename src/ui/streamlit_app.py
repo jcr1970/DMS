@@ -1,83 +1,121 @@
-import streamlit as st
-import os
-import matplotlib.pyplot as plt
+# src/ui/streamlit_app.py
 
-# Function to generate a fake user engagement score
-def get_user_engagement_score():
-    # Get the absolute path of the score file in the src/ui directory
-    score_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'score.txt')
-    
-    if os.path.exists(score_file_path):
+import streamlit as st
+import json
+import os
+import numpy as np
+import plotly.graph_objects as go
+from scipy.ndimage import gaussian_filter
+import matplotlib.pyplot as plt
+import pandas as pd
+import plotly.express as px
+
+# Function to load report data from JSON file
+def load_report_data():
+    report_file_path = 'src/data/report_data.json'
+    if os.path.exists(report_file_path):
         try:
-            with open(score_file_path, 'r') as score_file:
-                score = float(score_file.read())
-                st.write(f"Score read from file: {score}")
-                return score
+            with open(report_file_path, 'r') as report_file:
+                report_data = json.load(report_file)
+                return report_data
         except Exception as e:
-            st.error(f"Failed to read score from {score_file_path}: {e}")
+            st.error(f"Failed to read report data from {report_file_path}: {e}")
             return None
     else:
-        st.error(f"Score file not found: {score_file_path}")
+        st.error(f"Report data file not found: {report_file_path}")
         return None
 
-# Function to explain how the score is calculated
-def explain_engagement_score():
-    st.write("""
-    ### How the score is calculated
-    The user engagement score is calculated based on several criteria related to the driver's gaze:
+# Function to plot circular progress
+def plot_circular_progress(score):
+    fig = go.Figure(go.Pie(
+        values=[score, 100-score],
+        hole=0.7,
+        textinfo='none',
+        marker=dict(colors=['#00cc96', '#e6e6e6']),
+    ))
     
-    - **Road Focus**: Time spent focusing on the road is considered positive.
-    - **Mirror Check**: Time spent checking mirrors is considered positive if within a threshold.
-    - **Dashboard Check**: Time spent checking the dashboard is considered positive if within a threshold.
-    - **Off Road Gaze**: Time spent looking away from the road is considered negative.
-    - **Prolonged Check**: Prolonged checks are considered negative if exceeding a threshold.
-    - **Closed Eyes**: Time spent with eyes closed is always negative.
+    fig.update_layout(
+        showlegend=False,
+        margin=dict(t=0, b=0, l=0, r=0),
+        annotations=[dict(text=f'{score:.2f}%', x=0.5, y=0.5, font_size=40, showarrow=False)]
+    )
+    st.plotly_chart(fig)
+
+# Function to plot engagement percentage bar chart
+def plot_engagement_percentage(engagement_percentage):
+    df = pd.DataFrame(list(engagement_percentage.items()), columns=['Stimuli', 'Percentage'])
+    fig = px.bar(df, x='Stimuli', y='Percentage', color='Percentage', 
+                 color_continuous_scale='Blues', title='Engagement Percentage by Stimuli',
+                 labels={'Percentage':'Engagement Percentage (%)'})
+    st.plotly_chart(fig)
+
+# Function to plot total engagement time bar chart
+def plot_engagement_time(total_engagement_time):
+    df = pd.DataFrame(list(total_engagement_time.items()), columns=['Stimuli', 'Time'])
+    fig = px.bar(df, y='Stimuli', x='Time', orientation='h', color='Time', 
+                 color_continuous_scale='Greens', title='Total Engagement Time by Stimuli',
+                 labels={'Time':'Time (seconds)'})
+    st.plotly_chart(fig)
+
+# Function to plot heatmap
+def plot_heatmap(gaze_points):
+    screen_size = (2560, 1440)
     
-    Each gaze direction is scored, and the overall engagement score is calculated as a percentage.
-    """)
+    all_points = []
+    for region, points in gaze_points.items():
+        all_points.extend(points)
+    
+    all_points = np.array(all_points)
+    filtered_intersections = [p for p in all_points if 0 <= p[0] <= screen_size[0] and 0 <= p[1] <= screen_size[1]]
+    heatmap, xedges, yedges = np.histogram2d(
+        [p[0] for p in filtered_intersections],
+        [p[1] for p in filtered_intersections],
+        bins=(screen_size[0]//10, screen_size[1]//10)
+    )
+    
+    heatmap = gaussian_filter(heatmap, sigma=8)
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    cax = ax.imshow(heatmap.T, extent=[0, screen_size[0], 0, screen_size[1]], origin='lower', cmap='jet')
+    fig.colorbar(cax, ax=ax, label='Gaze Intensity')
+    ax.set_xlabel('Horizontal Position (pixels)')
+    ax.set_ylabel('Vertical Position (pixels)')
+    
+    # Add labels for regions
+    ax.text(1280, 720, 'Road', color='white', fontsize=12, ha='center')
+    ax.text(1280, 1300, 'Rearview Mirror', color='white', fontsize=12, ha='center')
+    ax.text(1280, 100, 'Dashboard', color='white', fontsize=12, ha='center')
+    ax.text(400, 720, 'Left Mirror', color='white', fontsize=12, ha='center')
+    ax.text(2160, 720, 'Right Mirror', color='white', fontsize=12, ha='center')
+    
+    plt.title('Driver Gaze Heatmap')
+    st.pyplot(fig)
 
-# Function to generate pie chart
-def generate_pie_chart():
-    labels = ['Road', 'Rearview Mirror', 'Left Mirror', 'Right Mirror', 'Dashboard']
-    sizes = [70, 10, 7, 7, 6]  # realistic percentages
-    colors = ['#ff9999','#66b3ff','#99ff99','#ffcc99','#c2c2f0']
-    explode = (0.1, 0, 0, 0, 0)  # explode the 1st slice (Road)
+# Load report data
+report_data = load_report_data()
 
-    fig1, ax1 = plt.subplots()
-    ax1.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%',
-            shadow=True, startangle=90)
-    ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+if report_data:
+    st.title("Driver Monitoring Report")
 
-    st.pyplot(fig1)
-
-st.title("Driver Monitoring Report")
-
-# Get the engagement score from the file
-score = get_user_engagement_score()
-if score is not None:
+    # Display engagement score
     st.header("User Engagement Score")
-    st.write(f"**Score:** {score}")
+    plot_circular_progress(report_data['engagement_score'])
 
-    # Toggle button for explanation
-    if st.button("How the score is calculated"):
-        if 'show_explanation' not in st.session_state:
-            st.session_state['show_explanation'] = True
-        else:
-            st.session_state['show_explanation'] = not st.session_state['show_explanation']
+    # Display total tracking time
+    st.write(f"**Total Tracking Time:** {report_data['total_time']:.2f} seconds")
 
-    # Show or hide the explanation based on the state
-    if 'show_explanation' in st.session_state and st.session_state['show_explanation']:
-        explain_engagement_score()
-else:
-    st.write("Score not available.")
+    # Display most and least engaged stimuli
+    st.write(f"**Most Engaged Stimulus:** {report_data['most_engaged_stimulus']} ({report_data['engagement_percentage'][report_data['most_engaged_stimulus']]:.2f}%)")
+    st.write(f"**Least Engaged Stimulus:** {report_data['least_engaged_stimulus']} ({report_data['engagement_percentage'][report_data['least_engaged_stimulus']]:.2f}%)")
 
-# Display the heatmap
-heatmap_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'heatmap.png')
-if os.path.exists(heatmap_path):
-    st.image(heatmap_path, caption='Driver Gaze Heatmap', use_column_width=True)
-else:
-    st.write("Heatmap not available.")
+    # Plot engagement percentage bar chart
+    st.header("Engagement Percentage by Stimuli")
+    plot_engagement_percentage(report_data['engagement_percentage'])
 
-# Display the pie chart
-st.header("Gaze Distribution")
-generate_pie_chart()
+    # Plot total engagement time bar chart
+    st.header("Total Engagement Time by Stimuli")
+    plot_engagement_time(report_data['total_engagement_time'])
+
+    # Plot heatmap
+    # st.header("Engagement Heatmap")
+    # plot_heatmap(report_data['gaze_points'])
